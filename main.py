@@ -5,7 +5,7 @@ import sys
 from typing import List
 
 from classifier import classify_with_groq
-from config import PREFERENCES
+from config import PREFERENCES, Preferences
 from filter import stage1_filter
 from notifier import format_hackathon_message, load_telegram_config, send_summary, send_telegram_message
 from scraper import Hackathon, fetch_open_hackathons
@@ -19,7 +19,8 @@ def _should_use_llm() -> bool:
     return (os.environ.get("USE_LLM", "1").strip().lower() not in ("0", "false", "no"))
 
 
-def run_once() -> int:
+def run_once(prefs: Preferences | None = None) -> int:
+    prefs = prefs or PREFERENCES
     hacks = fetch_open_hackathons()
 
     state = load_seen(SEEN_PATH)
@@ -33,7 +34,7 @@ def run_once() -> int:
         if h.url in state.seen_urls:
             continue
 
-        s1 = stage1_filter(h, PREFERENCES)
+        s1 = stage1_filter(h, prefs)
         if s1.decision == "fail":
             continue
 

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
-from typing import Optional
+from typing import Any, Optional
 
 import requests
 
@@ -52,17 +52,23 @@ def send_telegram_message(cfg: TelegramConfig, text: str, *, timeout_s: int = 20
     send_telegram_message_to(cfg.bot_token, cfg.chat_id, text, timeout_s=timeout_s)
 
 
-def send_telegram_message_to(bot_token: str, chat_id: str, text: str, *, timeout_s: int = 20) -> None:
+def send_telegram_message_to(
+    bot_token: str,
+    chat_id: str,
+    text: str,
+    *,
+    reply_markup: Optional[dict[str, Any]] = None,
+    timeout_s: int = 20,
+) -> None:
     url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
-    r = requests.post(
-        url,
-        data={
-            "chat_id": chat_id,
-            "text": text,
-            "disable_web_page_preview": True,
-        },
-        timeout=timeout_s,
-    )
+    payload: dict[str, Any] = {
+        "chat_id": chat_id,
+        "text": text,
+        "disable_web_page_preview": True,
+    }
+    if reply_markup is not None:
+        payload["reply_markup"] = reply_markup
+    r = requests.post(url, json=payload, timeout=timeout_s)
     r.raise_for_status()
 
 
