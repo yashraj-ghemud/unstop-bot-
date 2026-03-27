@@ -62,23 +62,14 @@ def stage1_filter(h: Hackathon, prefs: Preferences) -> Stage1Result:
     if exclude and _contains_any(text_blob, exclude):
         return Stage1Result("fail", "Matched exclude keyword")
 
-    # Paid/free filter
+    # Paid/free filter (best-effort). If unknown, don't block results.
     if paid_filter in ("free", "paid"):
-        if fee_type in ("", "unknown"):
-            # infer from text
-            if paid_filter == "free" and _contains_any(text_blob, ["paid", "fee", "charges", "₹", "rs", "inr"]):
-                return Stage1Result("fail", "Looks paid/fee-based")
-            if paid_filter == "paid" and _contains_any(text_blob, ["free", "no fee", "no fees"]):
-                return Stage1Result("fail", "Looks free")
-        else:
-            if paid_filter != fee_type:
-                return Stage1Result("fail", f"Fee type mismatch ({fee_type})")
+        if fee_type not in ("", "unknown") and paid_filter != fee_type:
+            return Stage1Result("fail", f"Fee type mismatch ({fee_type})")
 
-    # Status filter
+    # Status filter. If missing, don't block results.
     if status_filter in ("live", "expired", "recent"):
-        if not status or status == "unknown":
-            return Stage1Result("ambiguous", "Status missing")
-        if status_filter != status:
+        if status and status != "unknown" and status_filter != status:
             return Stage1Result("fail", f"Status mismatch ({status})")
 
     # Mode must match if preference isn't both.
@@ -90,13 +81,14 @@ def stage1_filter(h: Hackathon, prefs: Preferences) -> Stage1Result:
         ):
             return Stage1Result("fail", f"Mode mismatch ({mode})")
 
-    # Domain/category (best-effort): if selected, require match in tags or text
-    if domain and domain != "any":
-        if domain not in text_blob:
-            return Stage1Result("ambiguous", "Domain not detected in listing")
-    if category and category != "any":
-        if category not in text_blob:
-            return Stage1Result("ambiguous", "Category not detected in listing")
+    # Domain/category (best-effort). Do not block if not detected.
+    # Only fail when we have explicit tags and it's clearly not matching.
+    if (getattr(h, "tags", None) or []) and domain and domain != "any":
+        if domain not in tags and domain not in text_blob:
+            return Stage1Result("fail", "Domain mismatch")
+    if (getattr(h, "tags", None) or []) and category and category != "any":
+        if category not in tags and category not in text_blob:
+            return Stage1Result("fail", "Category mismatch")
 
     # Must look like a hackathon: title contains hack words OR include_keywords match.
     if include:

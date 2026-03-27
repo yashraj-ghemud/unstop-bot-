@@ -22,8 +22,8 @@ PREFERENCES = Preferences(
     preferred_mode="both",
     paid_filter="any",
     status_filter="any",
-    domain="Engineering",
-    category="Software Development",
+    domain="Any",
+    category="Any",
     include_keywords=[
         "hackathon",
         "hack",
