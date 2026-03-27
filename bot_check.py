@@ -7,6 +7,7 @@ from typing import Any, Dict, Optional
 import requests
 
 from config import Preferences
+from env_loader import load_env
 from main import run_once
 from notifier import send_telegram_message_to
 from user_prefs import (
@@ -142,6 +143,7 @@ def _handle_filter_reply(token: str, chat_id: str, text_raw: str) -> bool:
 
 
 def main() -> int:
+    load_env()
     token = _get_env("TELEGRAM_BOT_TOKEN")
     if not token:
         raise SystemExit("Missing TELEGRAM_BOT_TOKEN")

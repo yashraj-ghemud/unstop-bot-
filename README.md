@@ -49,9 +49,8 @@ In your GitHub repo: Settings → Secrets and variables → Actions → New repo
 
 ```bash
 pip install -r requirements.txt
-set TELEGRAM_BOT_TOKEN=...
-set TELEGRAM_CHAT_ID=...
-set GROQ_API_KEY=...   # optional
+copy env\\.env.example env\\.env
+# fill env\\.env with your secrets
 python main.py
 ```
 
@@ -65,11 +64,24 @@ or deploy it to an always-on free service.
 Run locally:
 
 ```bash
-set TELEGRAM_BOT_TOKEN=...
-set TELEGRAM_CHAT_ID=...   # optional safety: only respond in this chat
-set GROQ_API_KEY=...       # optional
+copy env\\.env.example env\\.env
+# fill env\\.env with your secrets
 python bot_check.py
 ```
+
+### Get your numeric TELEGRAM_CHAT_ID
+
+Telegram username (like `@Viczo2222`) is **not** the chat id.
+
+Steps:
+- Send any message to your bot in Telegram (example: `hi`)
+- Run:
+
+```bash
+python get_chat_id.py
+```
+
+- Copy the `chat_id=...` for your account into `env/.env` as `TELEGRAM_CHAT_ID=...`
 
 Then in Telegram, send: `check`
 

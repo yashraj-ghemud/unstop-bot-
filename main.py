@@ -4,6 +4,7 @@ import os
 import sys
 from typing import List
 
+from env_loader import load_env
 from classifier import classify_with_groq
 from config import PREFERENCES, Preferences
 from filter import stage1_filter
@@ -20,6 +21,7 @@ def _should_use_llm() -> bool:
 
 
 def run_once(prefs: Preferences | None = None) -> int:
+    load_env()
     prefs = prefs or PREFERENCES
     hacks = fetch_open_hackathons()
 
