@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from typing import Any, Dict, Iterable, List, Optional
 
 import requests
+from bs4 import BeautifulSoup
 
 
 @dataclass(frozen=True)
@@ -14,9 +15,11 @@ class Hackathon:
     description: str
     mode: str
     location: str
-    prize_inr: int
     deadline: str
     url: str
+    status: str  # live|expired|recent|unknown
+    fee_type: str  # free|paid|any|unknown
+    tags: List[str]
 
 
 _UA = (
@@ -109,16 +112,16 @@ def _hackathon_from_obj(obj: Dict[str, Any]) -> Optional[Hackathon]:
             ],
         )
     )
-    prize_inr = _parse_prize_inr(obj)
-
     return Hackathon(
         title=title,
         description=description.strip(),
         mode=mode,
         location=location.strip(),
-        prize_inr=prize_inr,
         deadline=deadline.strip(),
         url=url,
+        status="unknown",
+        fee_type="unknown",
+        tags=[],
     )
 
 
@@ -178,7 +181,8 @@ def fetch_open_hackathons(max_pages: int = 20, timeout_s: int = 30) -> List[Hack
                     data = None
 
         if data is None:
-            break
+            # Fallback to HTML scraping from the API site (works even when JSON isn't available).
+            return _fetch_from_api_site(session=session, timeout_s=timeout_s)
 
         items = _extract_items_from_json(data)
         if not items:
@@ -203,4 +207,78 @@ def fetch_open_hackathons(max_pages: int = 20, timeout_s: int = 30) -> List[Hack
     for h in out:
         dedup[h.url] = h
     return list(dedup.values())
+
+
+def _infer_status(text: str) -> str:
+    t = (text or "").lower()
+    if "days left" in t or "day left" in t or "hours left" in t:
+        return "live"
+    if "expired" in t or "ended" in t or "closed" in t:
+        return "expired"
+    if "posted" in t:
+        return "recent"
+    return "unknown"
+
+
+def _infer_fee_type(text: str) -> str:
+    t = (text or "").lower()
+    if "free" in t and "fee" not in t:
+        return "free"
+    if "paid" in t or "entry fee" in t or "registration fee" in t:
+        return "paid"
+    return "unknown"
+
+
+def _fetch_from_api_site(session: requests.Session, timeout_s: int) -> List[Hackathon]:
+    """
+    Scrape `https://api.unstop.com/hackathons/` HTML listing.
+    This endpoint is generally accessible even when `unstop.com` blocks scraping.
+    """
+    r = session.get("https://api.unstop.com/hackathons/", timeout=timeout_s)
+    r.raise_for_status()
+    soup = BeautifulSoup(r.text or "", "html.parser")
+
+    hacks: dict[str, Hackathon] = {}
+
+    # The page shows multiple hackathons with links to detail pages under /hackathons/<slug>
+    for a in soup.find_all("a", href=True):
+        href = str(a.get("href") or "")
+        if not href:
+            continue
+        if href.startswith("/"):
+            href = "https://api.unstop.com" + href
+        if not href.startswith("https://api.unstop.com/hackathons/"):
+            continue
+        if href.rstrip("/").endswith("/hackathons"):
+            continue
+
+        title = (a.get_text(" ", strip=True) or "").strip()
+        # If anchor has no text, try previous header
+        if not title:
+            prev_h = a.find_previous(["h1", "h2", "h3"])
+            if prev_h:
+                title = (prev_h.get_text(" ", strip=True) or "").strip()
+        if not title:
+            title = href.rsplit("/", 1)[-1].replace("-", " ").strip()
+
+        context = ""
+        parent = a.parent
+        if parent:
+            context = parent.get_text(" ", strip=True)
+        status = _infer_status(context)
+        fee_type = _infer_fee_type(context)
+
+        hacks[href] = Hackathon(
+            title=title,
+            description="",
+            mode="unknown",
+            location="",
+            deadline="",
+            url=href.replace("https://api.unstop.com", "https://unstop.com"),
+            status=status,
+            fee_type=fee_type,
+            tags=[],
+        )
+
+    return list(hacks.values())
 

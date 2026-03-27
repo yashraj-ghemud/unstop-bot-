@@ -44,18 +44,42 @@ def _contains_any_word(haystack: str, words: list[str]) -> bool:
 def stage1_filter(h: Hackathon, prefs: Preferences) -> Stage1Result:
     title = (h.title or "").strip()
     desc = (h.description or "").strip()
-    loc = (h.location or "").strip()
     mode = (h.mode or "").strip().lower()
+    status = (getattr(h, "status", "") or "").strip().lower()
+    fee_type = (getattr(h, "fee_type", "") or "").strip().lower()
+    tags = " ".join([str(t) for t in (getattr(h, "tags", []) or [])]).lower()
 
     include = normalize_keywords(prefs.include_keywords)
     exclude = normalize_keywords(prefs.exclude_keywords)
-    city = (prefs.city_must_include or "").strip().lower()
     preferred_mode = (prefs.preferred_mode or "both").strip().lower()
+    paid_filter = (getattr(prefs, "paid_filter", "any") or "any").strip().lower()
+    status_filter = (getattr(prefs, "status_filter", "any") or "any").strip().lower()
+    domain = (getattr(prefs, "domain", "") or "").strip().lower()
+    category = (getattr(prefs, "category", "") or "").strip().lower()
 
-    text_blob = f"{title}\n{desc}\n{loc}\n{mode}".lower()
+    text_blob = f"{title}\n{desc}\n{mode}\n{status}\n{fee_type}\n{tags}".lower()
 
     if exclude and _contains_any(text_blob, exclude):
         return Stage1Result("fail", "Matched exclude keyword")
+
+    # Paid/free filter
+    if paid_filter in ("free", "paid"):
+        if fee_type in ("", "unknown"):
+            # infer from text
+            if paid_filter == "free" and _contains_any(text_blob, ["paid", "fee", "charges", "₹", "rs", "inr"]):
+                return Stage1Result("fail", "Looks paid/fee-based")
+            if paid_filter == "paid" and _contains_any(text_blob, ["free", "no fee", "no fees"]):
+                return Stage1Result("fail", "Looks free")
+        else:
+            if paid_filter != fee_type:
+                return Stage1Result("fail", f"Fee type mismatch ({fee_type})")
+
+    # Status filter
+    if status_filter in ("live", "expired", "recent"):
+        if not status or status == "unknown":
+            return Stage1Result("ambiguous", "Status missing")
+        if status_filter != status:
+            return Stage1Result("fail", f"Status mismatch ({status})")
 
     # Mode must match if preference isn't both.
     if preferred_mode in ("online", "offline"):
@@ -66,13 +90,13 @@ def stage1_filter(h: Hackathon, prefs: Preferences) -> Stage1Result:
         ):
             return Stage1Result("fail", f"Mode mismatch ({mode})")
 
-    # City check: if location is present and doesn't contain the city => fail; if missing => ambiguous
-    if city:
-        if loc:
-            if city not in loc.lower():
-                return Stage1Result("fail", f"Location not in {prefs.city_must_include}")
-        else:
-            return Stage1Result("ambiguous", "Location missing")
+    # Domain/category (best-effort): if selected, require match in tags or text
+    if domain and domain != "any":
+        if domain not in text_blob:
+            return Stage1Result("ambiguous", "Domain not detected in listing")
+    if category and category != "any":
+        if category not in text_blob:
+            return Stage1Result("ambiguous", "Category not detected in listing")
 
     # Must look like a hackathon: title contains hack words OR include_keywords match.
     if include:
@@ -85,15 +109,8 @@ def stage1_filter(h: Hackathon, prefs: Preferences) -> Stage1Result:
         if not _contains_any_word(title, HACKATHON_TITLE_HINTS):
             return Stage1Result("fail", "Title doesn't look like a hackathon")
 
-    # Prize threshold: if prize is unknown (0) we keep ambiguous; if known but below threshold => fail
-    if prefs.min_prize_inr > 0:
-        if h.prize_inr <= 0:
-            return Stage1Result("ambiguous", "Prize missing/unknown")
-        if h.prize_inr < prefs.min_prize_inr:
-            return Stage1Result("fail", f"Prize below {prefs.min_prize_inr}")
-
     # If description is long and location/mode are unknown, send to LLM.
-    if len(desc) > 350 and (not loc or mode in ("unknown", "")):
+    if len(desc) > 350 and mode in ("unknown", ""):
         return Stage1Result("ambiguous", "Needs LLM classification (long description)")
 
     return Stage1Result("pass", "Matched stage-1 rules")

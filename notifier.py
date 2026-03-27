@@ -31,8 +31,8 @@ def _escape(s: str) -> str:
 def format_hackathon_message(h: Hackathon) -> str:
     title = _escape(h.title)
     mode = _escape(h.mode or "unknown")
-    loc = _escape(h.location or "unknown")
-    prize = f"₹{h.prize_inr:,}" if h.prize_inr and h.prize_inr > 0 else "Not mentioned"
+    status = _escape(getattr(h, "status", "") or "unknown")
+    fee_type = _escape(getattr(h, "fee_type", "") or "unknown")
     deadline = _escape(h.deadline or "Not mentioned")
     url = _escape(h.url)
 
@@ -40,8 +40,8 @@ def format_hackathon_message(h: Hackathon) -> str:
         "🚨 New Hackathon Alert!",
         f"🏆 {title}",
         f"🧑‍💻 Mode: {mode}",
-        f"📍 Location: {loc}",
-        f"💰 Prize: {prize}",
+        f"📌 Status: {status}",
+        f"💳 Fee: {fee_type}",
         f"⏳ Deadline: {deadline}",
         f"🔗 {url}",
     ]

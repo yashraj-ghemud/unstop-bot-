@@ -81,61 +81,141 @@ def _handle_filter_reply(token: str, chat_id: str, text_raw: str) -> bool:
             return True
         prefs = Preferences(
             preferred_mode=text,
+            paid_filter=getattr(prefs, "paid_filter", "any"),
+            status_filter=getattr(prefs, "status_filter", "any"),
+            domain=getattr(prefs, "domain", "Engineering"),
+            category=getattr(prefs, "category", "Any"),
             include_keywords=prefs.include_keywords,
             exclude_keywords=prefs.exclude_keywords,
-            min_prize_inr=prefs.min_prize_inr,
-            city_must_include=prefs.city_must_include,
         )
         set_user_preferences(str(chat_id), prefs, setup_complete=False)
-        set_user_state(str(chat_id), {"awaiting": "city"})
+        set_user_state(str(chat_id), {"awaiting": "fee"})
         send_telegram_message_to(
             token,
             str(chat_id),
-            "Choose your city filter.",
-            reply_markup=_kb([["Pune"], ["Any"]]),
+            "Choose paid/free filter.",
+            reply_markup=_kb([["Free", "Paid", "Any"]]),
         )
         return True
 
-    if step == "city":
-        if text not in ("pune", "any"):
-            send_telegram_message_to(token, str(chat_id), "Please choose: Pune or Any.")
+    if step == "fee":
+        if text not in ("free", "paid", "any"):
+            send_telegram_message_to(token, str(chat_id), "Please choose: Free / Paid / Any.")
             return True
-        city = "Pune" if text == "pune" else ""
         prefs = Preferences(
             preferred_mode=prefs.preferred_mode,
+            paid_filter=text,
+            status_filter=getattr(prefs, "status_filter", "any"),
+            domain=getattr(prefs, "domain", "Engineering"),
+            category=getattr(prefs, "category", "Any"),
             include_keywords=prefs.include_keywords,
             exclude_keywords=prefs.exclude_keywords,
-            min_prize_inr=prefs.min_prize_inr,
-            city_must_include=city,
         )
         set_user_preferences(str(chat_id), prefs, setup_complete=False)
-        set_user_state(str(chat_id), {"awaiting": "prize"})
+        set_user_state(str(chat_id), {"awaiting": "status"})
         send_telegram_message_to(
             token,
             str(chat_id),
-            "Choose minimum prize (INR).",
-            reply_markup=_kb([["0", "5000", "10000"], ["50000"]]),
+            "Choose event status.",
+            reply_markup=_kb([["Live", "Recent", "Expired"], ["Any"]]),
         )
         return True
 
-    if step == "prize":
-        if text not in ("0", "5000", "10000", "50000"):
-            send_telegram_message_to(token, str(chat_id), "Pick one: 0 / 5000 / 10000 / 50000.")
+    if step == "status":
+        if text not in ("live", "recent", "expired", "any"):
+            send_telegram_message_to(token, str(chat_id), "Pick: Live / Recent / Expired / Any.")
             return True
         prefs = Preferences(
             preferred_mode=prefs.preferred_mode,
+            paid_filter=getattr(prefs, "paid_filter", "any"),
+            status_filter=text,
+            domain=getattr(prefs, "domain", "Engineering"),
+            category=getattr(prefs, "category", "Any"),
             include_keywords=prefs.include_keywords,
             exclude_keywords=prefs.exclude_keywords,
-            min_prize_inr=int(text),
-            city_must_include=prefs.city_must_include,
+        )
+        set_user_preferences(str(chat_id), prefs, setup_complete=False)
+        set_user_state(str(chat_id), {"awaiting": "domain"})
+        send_telegram_message_to(
+            token,
+            str(chat_id),
+            "Choose domain.",
+            reply_markup=_kb([["Engineering", "Management"], ["Arts & Science", "Medicine"], ["Law", "Others"]]),
+        )
+        return True
+
+    if step == "domain":
+        allowed = {
+            "engineering": "Engineering",
+            "management": "Management",
+            "arts & science": "Arts & Science",
+            "medicine": "Medicine",
+            "law": "Law",
+            "others": "Others",
+        }
+        if text not in allowed:
+            send_telegram_message_to(token, str(chat_id), "Choose a domain from the buttons.")
+            return True
+        prefs = Preferences(
+            preferred_mode=prefs.preferred_mode,
+            paid_filter=getattr(prefs, "paid_filter", "any"),
+            status_filter=getattr(prefs, "status_filter", "any"),
+            domain=allowed[text],
+            category=getattr(prefs, "category", "Any"),
+            include_keywords=prefs.include_keywords,
+            exclude_keywords=prefs.exclude_keywords,
+        )
+        set_user_preferences(str(chat_id), prefs, setup_complete=False)
+        set_user_state(str(chat_id), {"awaiting": "category"})
+
+        # Category list (from your screenshot). We show a short menu + allow typing.
+        send_telegram_message_to(
+            token,
+            str(chat_id),
+            "Choose a category (or type your own category name).\nCommon options:",
+            reply_markup=_kb(
+                [
+                    ["Software Development", "Data & Analytics"],
+                    ["Artificial Intelligence & Machine Learning", "Cybersecurity"],
+                    ["Cloud & Infrastructure", "Product Management"],
+                    ["Quality Assurance & Testing", "IT & Systems"],
+                    ["Any"],
+                ],
+                one_time=False,
+            ),
+        )
+        return True
+
+    if step == "category":
+        # accept anything, but keep simple normalization
+        cat = text_raw.strip()
+        if not cat:
+            send_telegram_message_to(token, str(chat_id), "Please pick a category or type one.")
+            return True
+        if cat.lower() == "any":
+            cat = "Any"
+
+        prefs = Preferences(
+            preferred_mode=prefs.preferred_mode,
+            paid_filter=getattr(prefs, "paid_filter", "any"),
+            status_filter=getattr(prefs, "status_filter", "any"),
+            domain=getattr(prefs, "domain", "Engineering"),
+            category=cat,
+            include_keywords=prefs.include_keywords,
+            exclude_keywords=prefs.exclude_keywords,
         )
         set_user_preferences(str(chat_id), prefs, setup_complete=True)
         clear_user_state(str(chat_id))
-        city_label = prefs.city_must_include if prefs.city_must_include else "Any"
         send_telegram_message_to(
             token,
             str(chat_id),
-            f"✅ Filter saved:\n- Mode: {prefs.preferred_mode}\n- City: {city_label}\n- Min prize: {prefs.min_prize_inr}\n\nNow send: check",
+            "✅ Filter saved:\n"
+            f"- Mode: {prefs.preferred_mode}\n"
+            f"- Fee: {prefs.paid_filter}\n"
+            f"- Status: {prefs.status_filter}\n"
+            f"- Domain: {prefs.domain}\n"
+            f"- Category: {prefs.category}\n\n"
+            "Now send: check",
         )
         return True
 
@@ -182,11 +262,16 @@ def main() -> int:
                     send_telegram_message_to(token, chat_id, "Welcome! Let’s set your filters first.")
                     _start_filter_wizard(token, chat_id)
                 else:
-                    city_label = prefs.city_must_include if prefs.city_must_include else "Any"
                     send_telegram_message_to(
                         token,
                         chat_id,
-                        f"You're already set.\n- Mode: {prefs.preferred_mode}\n- City: {city_label}\n- Min prize: {prefs.min_prize_inr}\n\nSend: check\nOr change filters: /filter",
+                        "You're already set.\n"
+                        f"- Mode: {prefs.preferred_mode}\n"
+                        f"- Fee: {getattr(prefs,'paid_filter','any')}\n"
+                        f"- Status: {getattr(prefs,'status_filter','any')}\n"
+                        f"- Domain: {getattr(prefs,'domain','')}\n"
+                        f"- Category: {getattr(prefs,'category','')}\n\n"
+                        "Send: check\nOr change filters: /filter",
                     )
             elif text == "/filter":
                 send_telegram_message_to(token, chat_id, "Let’s update your filters.")

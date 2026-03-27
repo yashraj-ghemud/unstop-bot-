@@ -39,10 +39,12 @@ def get_user_preferences(chat_id: str) -> Tuple[Preferences, bool]:
     try:
         prefs = Preferences(
             preferred_mode=str(prefs_obj.get("preferred_mode", PREFERENCES.preferred_mode)),
+            paid_filter=str(prefs_obj.get("paid_filter", getattr(PREFERENCES, "paid_filter", "any"))),
+            status_filter=str(prefs_obj.get("status_filter", getattr(PREFERENCES, "status_filter", "any"))),
+            domain=str(prefs_obj.get("domain", getattr(PREFERENCES, "domain", ""))),
+            category=str(prefs_obj.get("category", getattr(PREFERENCES, "category", ""))),
             include_keywords=list(prefs_obj.get("include_keywords", PREFERENCES.include_keywords)),
             exclude_keywords=list(prefs_obj.get("exclude_keywords", PREFERENCES.exclude_keywords)),
-            min_prize_inr=int(prefs_obj.get("min_prize_inr", PREFERENCES.min_prize_inr)),
-            city_must_include=str(prefs_obj.get("city_must_include", PREFERENCES.city_must_include)),
         )
         return (prefs, setup_complete)
     except Exception:

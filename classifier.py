@@ -66,7 +66,6 @@ def classify_with_groq(
 Title: {h.title}
 Mode: {h.mode}
 Location: {h.location}
-Prize (INR, may be 0 if unknown): {h.prize_inr}
 Deadline: {h.deadline}
 URL: {h.url}
 

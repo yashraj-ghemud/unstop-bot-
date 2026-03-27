@@ -8,14 +8,22 @@ from typing import Iterable, List
 class Preferences:
     # preferred_mode: "online" | "offline" | "both"
     preferred_mode: str
+    # paid_filter: "free" | "paid" | "any"
+    paid_filter: str
+    # status_filter: "live" | "expired" | "recent" | "any"
+    status_filter: str
+    domain: str
+    category: str
     include_keywords: List[str]
     exclude_keywords: List[str]
-    min_prize_inr: int
-    city_must_include: str
 
 
 PREFERENCES = Preferences(
     preferred_mode="both",
+    paid_filter="any",
+    status_filter="any",
+    domain="Engineering",
+    category="Software Development",
     include_keywords=[
         "hackathon",
         "hack",
@@ -30,8 +38,6 @@ PREFERENCES = Preferences(
         "entry fee",
         "registration fee",
     ],
-    min_prize_inr=0,
-    city_must_include="Pune",
 )
 
 

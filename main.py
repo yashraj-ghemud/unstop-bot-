@@ -55,9 +55,11 @@ def run_once(prefs: Preferences | None = None) -> int:
                         description=h.description,
                         mode=dec.mode_detected,
                         location=h.location,
-                        prize_inr=h.prize_inr,
                         deadline=h.deadline,
                         url=h.url,
+                        status=getattr(h, "status", "unknown"),
+                        fee_type=getattr(h, "fee_type", "unknown"),
+                        tags=getattr(h, "tags", []) or [],
                     )
                 new_items.append(h)
         else:
