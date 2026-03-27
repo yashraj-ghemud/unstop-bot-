@@ -29,3 +29,7 @@ def save_seen(path: str | Path, state: SeenState) -> None:
         encoding="utf-8",
     )
 
+
+def clear_seen(path: str | Path) -> None:
+    save_seen(path, SeenState(seen_urls=set()))
+

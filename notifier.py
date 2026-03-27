@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import os
+import time
 from dataclasses import dataclass
 from typing import Any, Optional
 
 import requests
+from requests.exceptions import RequestException
 
 from scraper import Hackathon
 
@@ -68,8 +70,20 @@ def send_telegram_message_to(
     }
     if reply_markup is not None:
         payload["reply_markup"] = reply_markup
-    r = requests.post(url, json=payload, timeout=timeout_s)
-    r.raise_for_status()
+    backoff_s = 1.0
+    max_retries = 6
+    for attempt in range(max_retries):
+        try:
+            r = requests.post(url, json=payload, timeout=timeout_s)
+            r.raise_for_status()
+            return
+        except RequestException as e:
+            if attempt == max_retries - 1:
+                # Keep bot loop alive on transient network failures.
+                print(f"[warn] Telegram send failed after retries: {e}")
+                return
+            time.sleep(backoff_s)
+            backoff_s = min(backoff_s * 2.0, 30.0)
 
 
 def send_summary(cfg: TelegramConfig, new_count: int) -> None:

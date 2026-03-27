@@ -5,11 +5,13 @@ import time
 from typing import Any, Dict, Optional
 
 import requests
+from requests.exceptions import RequestException
 
 from config import Preferences
 from env_loader import load_env
-from main import run_once
+from main import SEEN_PATH, run_once
 from notifier import send_telegram_message_to
+from state import clear_seen
 from user_prefs import (
     clear_user_state,
     get_user_preferences,
@@ -30,6 +32,31 @@ def _tg(method: str, token: str, *, params: Optional[dict] = None, timeout_s: in
     return r.json()
 
 
+def _tg_safe(
+    method: str,
+    token: str,
+    *,
+    params: Optional[dict] = None,
+    timeout_s: int = 40,
+    max_retries: int = 6,
+) -> Optional[Dict[str, Any]]:
+    """
+    Telegram long-polling sometimes gets connection resets (WinError 10054).
+    Instead of crashing the bot, retry with exponential backoff.
+    """
+    backoff_s = 1.0
+    for attempt in range(max_retries):
+        try:
+            return _tg(method, token, params=params, timeout_s=timeout_s)
+        except RequestException:
+            # transient network issue (connection reset, timeouts, etc.)
+            if attempt == max_retries - 1:
+                return None
+            time.sleep(backoff_s)
+            backoff_s = min(backoff_s * 2.0, 30.0)
+    return None
+
+
 def _handle_check(token: str, chat_id: str) -> None:
     # run_once() already sends summary + messages to TELEGRAM_CHAT_ID.
     # For "check", we want replies to the requesting chat, so we temporarily override TELEGRAM_CHAT_ID.
@@ -43,6 +70,15 @@ def _handle_check(token: str, chat_id: str) -> None:
             os.environ.pop("TELEGRAM_CHAT_ID", None)
         else:
             os.environ["TELEGRAM_CHAT_ID"] = old
+
+
+def _handle_seen_clear(token: str, chat_id: str) -> None:
+    clear_seen(SEEN_PATH)
+    send_telegram_message_to(
+        token,
+        str(chat_id),
+        "✅ Cleared seen list (`seen.json`). Next `check` will re-send everything as new.",
+    )
 
 
 def _kb(button_rows: list[list[str]], *, one_time: bool = True) -> dict:
@@ -236,7 +272,11 @@ def main() -> int:
     send_telegram_message_to(token, allowed_chat_id or "me", "🤖 Bot listener started. Send: check") if False else None
 
     while True:
-        data = _tg("getUpdates", token, params={"timeout": 30, "offset": offset + 1})
+        data = _tg_safe("getUpdates", token, params={"timeout": 30, "offset": offset + 1}, timeout_s=40)
+        if not data:
+            # Could not reach Telegram right now; keep running.
+            time.sleep(2)
+            continue
         for upd in data.get("result", []) or []:
             upd_id = int(upd.get("update_id", 0))
             offset = max(offset, upd_id)
@@ -282,6 +322,8 @@ def main() -> int:
                     _handle_check(token, chat_id)
                 except Exception as e:
                     send_telegram_message_to(token, chat_id, f"❌ Error while checking: {e}")
+            elif text in ("seen clear", "/seen_clear"):
+                _handle_seen_clear(token, chat_id)
             elif text in ("help", "/help"):
                 send_telegram_message_to(
                     token,
