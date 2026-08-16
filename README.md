@@ -1,5 +1,32 @@
-# unstop-bot-
-> Small, modular Python agent that scrapes Unstop for hackathons, applies rule-based (and optional LLM) filtering, deduplicates with seen.json, and sends Telegram alerts on a schedule via GitHub Actions.
+<p align="center">
+  <img src="./.github/readme-assets/blueprint.gif" alt="Animated blueprint / system visual for unstop-bot-" width="100%" />
+</p>
+
+<h1 align="center">unstop-bot-</h1>
+
+<p align="center"><strong>Small, modular Python agent that scrapes Unstop for hackathons, applies rule-based (and optional LLM) filtering, deduplicates with seen.json, and sends Telegram alerts on a schedule via GitHub Actions.</strong></p>
+
+<p align="center"><code>REPO//SIGNAL</code> · <code>BLUEPRINT / SYSTEM</code> · <code>LOOPING README EXPERIENCE</code></p>
+
+## Live signal
+
+| Lens | Readout |
+| --- | --- |
+| Portfolio lane | **BLUEPRINT / SYSTEM** |
+| Code surface | **16** tracked files observed |
+| Primary materials | **Python, Markdown, JSON, YAML** |
+| Verification | **0** test-related files observed |
+
+> A structural view of the project machinery. The animated frame above is a lightweight visual signature; the sections below remain the source of truth for implementation details.
+
+## Motion map
+
+`INGEST` → `COMPOSE` → `SHIP`
+
+Trace the repository from inputs and dependencies through its core modules to the delivered surface. Keep configuration explicit, make failure states observable, and add verification around the highest-value paths.
+
+<details open>
+<summary><strong>Open the full project dossier</strong></summary>
 
 ## Overview
 This repository implements an agent that regularly checks Unstop for open hackathons and notifies a Telegram chat about new items. It is organized into focused modules for scraping, filtering, optional LLM classification, deduplication, and notification delivery. A GitHub Actions workflow runs the agent on a schedule and persists seen state back to the repository. An interactive long-polling bot mode is also included for on-demand checks.
@@ -121,3 +148,9 @@ Suggested immediate improvements (from the audit):
 - Because there is no contribution workflow documented in the repository materials, follow standard GitHub contribution practices: branch, commit, and open a PR with a clear description of changes.
 
 (There is no license file present in the supplied dossier; consult the repository to determine licensing.)
+
+</details>
+
+---
+
+<p align="center"><sub>README motion system · visual layer by RepoSignal · implementation details remain project-specific</sub></p>
